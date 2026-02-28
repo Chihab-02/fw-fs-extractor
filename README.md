@@ -21,7 +21,6 @@ A desktop GUI application that extracts embedded Linux filesystems (squashfs, cr
 ## Installation
 
 ```bash
-cd "Reverse Engineering tool"
 pip install -r requirements.txt
 ```
 
