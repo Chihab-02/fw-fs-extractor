@@ -53,7 +53,3 @@ pyinstaller --onefile --windowed --name "FirmwareExtractor" src/main.py
 ```
 
 The built executable will be in `dist/`. Note: binwalk must still be installed on the target system, or consider bundling it.
-
-## License
-
-MIT
