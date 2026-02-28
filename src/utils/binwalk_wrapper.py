@@ -5,6 +5,31 @@ import subprocess
 from pathlib import Path
 from typing import Callable
 
+
+def find_rootfs_folder(base_output: Path) -> Path:
+    """
+    Find the actual rootfs content folder inside binwalk's extraction structure.
+    e.g. output/x_extracted/x.img.extracted/0/rootfs/
+    Returns base_output if not found.
+    """
+    # Look for *.extracted then 0/rootfs or 0/squashfs-root
+    for extracted in base_output.glob("*.extracted"):
+        if not extracted.is_dir():
+            continue
+        # Check for 0/rootfs, 1/rootfs, etc.
+        for num_dir in extracted.iterdir():
+            if num_dir.is_dir() and num_dir.name.isdigit():
+                for candidate in ("rootfs", "squashfs-root", "cramfs-root"):
+                    rootfs = num_dir / candidate
+                    if rootfs.is_dir():
+                        return rootfs
+        # Some extractions put rootfs directly in extracted/
+        for candidate in ("rootfs", "squashfs-root", "cramfs-root"):
+            rootfs = extracted / candidate
+            if rootfs.is_dir():
+                return rootfs
+    return base_output
+
 try:
     import pybinwalk
     HAS_PYBINWALK = True
@@ -89,12 +114,19 @@ def run_extract(
 ) -> None:
     """
     Run binwalk extract on firmware.
-    Uses pybinwalk if configure works; falls back to subprocess binwalk on Windows
-    (pybinwalk extraction has a known configure bug on Windows).
+    Prefers subprocess binwalk when available (streams output for better progress feedback).
+    Falls back to pybinwalk (blocks with no streaming; configure fails on Windows).
     """
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Try pybinwalk first (works on Linux; configure fails on Windows)
+    # Prefer subprocess when available - streams output so user sees progress (no "freeze")
+    if shutil.which("binwalk"):
+        if _extract_via_subprocess(firmware_path, output_dir, on_line, on_complete, cancelled):
+            result_path = find_rootfs_folder(output_dir)
+            on_complete(result_path)
+            return
+
+    # Fallback: pybinwalk (blocking, no streaming - UI can appear frozen during large extractions)
     if HAS_PYBINWALK:
         try:
             on_line("Extracting embedded filesystems...")
@@ -114,7 +146,8 @@ def run_extract(
                     on_line(f"Extracted: {extraction.output_directory}")
                 else:
                     on_line(f"Extraction skipped: {sig_id}")
-            on_complete(output_dir)
+            result_path = find_rootfs_folder(output_dir)
+            on_complete(result_path)
             return
         except RuntimeError as e:
             if "BinwalkError" in str(e):
@@ -127,11 +160,6 @@ def run_extract(
             on_line(f"ERROR: {e}")
             on_complete(output_dir)
             return
-
-    # Fallback: subprocess binwalk (requires: cargo install binwalk, or Linux)
-    if _extract_via_subprocess(firmware_path, output_dir, on_line, on_complete, cancelled):
-        on_complete(output_dir)
-        return
 
     on_line(
         "Extraction failed. On Windows: install binwalk via 'cargo install binwalk' "

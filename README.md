@@ -14,9 +14,10 @@ A desktop GUI application that extracts embedded Linux filesystems (squashfs, cr
 
 - **Python 3.10+**
 - **pybinwalk**: Python bindings for Binwalk v3 (included in requirements). Scan works on Windows; extraction may require fallback.
-- **Extraction on Windows**: pybinwalk's extraction has a known bug on Windows. For full extraction:
-  - Install [Rust](https://rustup.rs), then: `cargo install binwalk`
-  - Or use WSL/Linux (binwalk works best there)
+- **Extraction**: For best progress feedback (no long "freezes"), install the binwalk CLI:
+  - **Linux/WSL**: `sudo apt install binwalk` (streams output during extraction)
+  - **Windows**: `cargo install binwalk` (Rust required), or use WSL
+  - Without binwalk CLI, pybinwalk is used (blocking; large files may appear frozen during extraction)
 
 ## Installation
 

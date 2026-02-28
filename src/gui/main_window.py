@@ -23,6 +23,7 @@ class MainWindow:
 
         self._event_queue: queue.Queue = queue.Queue()
         self._orchestrator: Optional[Orchestrator] = None
+        self._extracting = False
 
         # Top: file picker
         self._file_picker = FilePicker(
@@ -71,6 +72,7 @@ class MainWindow:
         self._progress_panel.reset()
         self._extract_btn.configure(state="disabled")
         self._cancel_btn.configure(state="normal")
+        self._extracting = False
 
         self._orchestrator = Orchestrator(self._event_queue)
         self._orchestrator.run(path, output_dir)
@@ -94,19 +96,30 @@ class MainWindow:
                         self._progress_panel.append_log(kwargs["message"])
                 elif event_type == "scan_complete":
                     self._progress_panel.append_log("Scan complete. Extracting...")
+                    self._extracting = True
+                    self._progress_panel.set_indeterminate(True)
                 elif event_type == "extract_complete":
+                    self._extracting = False
+                    self._progress_panel.set_indeterminate(False)
+                    self._progress_panel.set_progress(100, "Done.")
                     self._results_view.set_output_path(kwargs["path"])
                     self._extract_btn.configure(state="normal")
                     self._cancel_btn.configure(state="disabled")
                     self._progress_panel.append_log("Done.")
                 elif event_type == "cancelled":
+                    self._extracting = False
+                    self._progress_panel.set_indeterminate(False)
                     self._progress_panel.append_log("Cancelled.")
                     self._extract_btn.configure(state="normal")
                     self._cancel_btn.configure(state="disabled")
                 elif event_type == "error":
+                    self._extracting = False
+                    self._progress_panel.set_indeterminate(False)
                     self._progress_panel.append_log(f"ERROR: {kwargs.get('message', '')}")
                     self._extract_btn.configure(state="normal")
                     self._cancel_btn.configure(state="disabled")
         except queue.Empty:
             pass
+        if self._extracting:
+            self._progress_panel.tick_pulse()
         self.root.after(100, self._poll_events)

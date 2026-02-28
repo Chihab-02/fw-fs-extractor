@@ -92,9 +92,12 @@ class ResultsView(ctk.CTkFrame):
             pass
 
     def set_output_path(self, path: Path) -> None:
-        """Set and display the extraction output path."""
+        """Set and display the extraction output path (prefers rootfs folder when found)."""
         self._output_path = path
-        self._path_label.configure(text=f"Extracted: {path}")
+        display = str(path)
+        if len(display) > 60:
+            display = "..." + display[-57:]
+        self._path_label.configure(text=f"Extracted: {display}")
         if self._tree_expanded:
             self._refresh_tree()
 
